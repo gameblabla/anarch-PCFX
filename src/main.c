@@ -343,6 +343,7 @@ void SFG_setMusic(uint8_t value)
 		//SFG_nextMusicTrack(); 
 		if (musicindex > 2) musicindex = 0;
 		
+		#ifndef FXUPLOADER
 		switch (musicindex)
 		{
 			case 0:
@@ -358,19 +359,23 @@ void SFG_setMusic(uint8_t value)
 				cd_end_track(7, CDDA_LOOP);
 			break;
 		}
+		#endif
 		musicindex++;
 		
 	break;
     case SFG_MUSIC_TITLE:
 		if (musicOn == 0) return;
+		#ifndef FXUPLOADER
 		cd_start_track(2);
 		cd_end_track(3, CDDA_LOOP);
+		#endif
     break;
     case SFG_MUSIC_WIN:
 		if (musicOn == 0) return;
-		
+		#ifndef FXUPLOADER
 		cd_start_track(4);
 		cd_end_track(5, CDDA_NORMAL);
+		#endif
     break;
     
     default: break;
