@@ -56,6 +56,10 @@ extern volatile int __attribute__ ((zda)) frame_text ;
 
 extern void Move_Sprite(int chip, int x, int y);
 
+extern int getFps();
+
+extern int getTicks();
+
 #define VDC_CHIP_0 0
 #define VDC_CHIP_1 1
 

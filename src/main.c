@@ -35,12 +35,10 @@
 // #define SFG_CPU_LOAD(percent) printf("CPU load: %d%\n",percent);
 // #define GAME_LQ
 
+
 // lower quality
 #define SFG_FPS 20
-#define SFG_SCREEN_RESOLUTION_X 256
-#define SFG_SCREEN_RESOLUTION_Y 240
 #define SFG_RAYCASTING_SUBSAMPLE 3
-#define SFG_RESOLUTION_SCALEDOWN 2
 #define SFG_DIMINISH_SPRITES 0
 #define SFG_DITHERED_SHADOW 0
 #define SFG_BACKGROUND_BLUR 0
@@ -50,11 +48,8 @@
 #define SFG_CAN_EXIT 0
 #define SFG_DRAW_LEVEL_BACKGROUND 1
 
-
 #define SFG_PLAYER_DAMAGE_MULTIPLIER 1024
-
 #define SDL_MUSIC_VOLUME 16
-
 #define SDL_ANALOG_DIVIDER 1024
 
 #include <stdio.h>
@@ -72,14 +67,76 @@
 #include "game_constants.h"
 #include "shared_objects.h"
 
+uint32_t ticks = 0;
+extern uint32_t nframe;
+
+//#define DEBUGFPS 1
+
+#if 0
+#define SFG_SCREEN_RESOLUTION_X 256
+#define SFG_SCREEN_RESOLUTION_Y 240
+#define SFG_RESOLUTION_SCALEDOWN 2
+uint8_t framebuffer[(256*240)];
+#define SFG_setPixel( x,  y,  colorIndex) framebuffer[y * SFG_SCREEN_RESOLUTION_X + x] = colorIndex;
+#endif
+
+#if 0
+// SLOW
+#define SFG_SCREEN_RESOLUTION_X 256
+#define SFG_SCREEN_RESOLUTION_Y 240
+#define SFG_RESOLUTION_SCALEDOWN 1
+uint32_t framebuffer[(256*240)/4];
+static inline void SFG_setPixel(uint32_t x, uint32_t y, uint32_t colorIndex)
+{
+    // Calculate the pixel index within a 32-bit value
+    uint32_t pixelIndex = (x % 4);
+
+    // Calculate the index of the 32-bit value in the buffer
+    uint32_t bufferIndex = (y * (SFG_SCREEN_RESOLUTION_X >> 2)) + (x >> 2);
+
+	uint32_t shift = (pixelIndex) << 3;
+
+    // Set the color index in the appropriate pixel within the 32-bit value
+    framebuffer[bufferIndex] &= ~(0xFF << shift); // Clear the bits for the pixel
+    framebuffer[bufferIndex] |= (colorIndex << shift); // Set the bits for the pixel
+}
+
+#endif
+
+
+#if 0
+#define SFG_SCREEN_RESOLUTION_X 128
+#define SFG_SCREEN_RESOLUTION_Y 120
+#define SFG_RESOLUTION_SCALEDOWN 1
+uint32_t framebuffer[(256*240)/4];
+//#define SFG_setPixel(x, y, colorIndex) ((uint16_t*)framebuffer)[(y << 1) * SFG_SCREEN_RESOLUTION_X + x] = (uint16_t)(colorIndex << 8) | colorIndex;
+#define SFG_setPixel(x, y, colorIndex) ((uint16_t*)framebuffer)[(y << 8) + x] = (uint16_t)(colorIndex << 8) | colorIndex;
+#endif
+
+#if 1
+#define SFG_SCREEN_RESOLUTION_X 128
+#define SFG_SCREEN_RESOLUTION_Y 120
+#define SFG_RESOLUTION_SCALEDOWN 1
+uint32_t framebuffer[(256*240)/4];
+static inline void SFG_setPixel(uint32_t x, uint32_t y, uint32_t colorIndex)
+{
+    // Calculate the index into the framebuffer, accounting for the spacing
+    //uint32_t index = ((y << 1) * SFG_SCREEN_RESOLUTION_X) + x;
+    uint32_t index = (y << 8) + x;
+    uint32_t c = (uint32_t)((colorIndex << 8) | colorIndex);
+    
+    // Write the color index to the framebuffer for two consecutive lines
+    ((uint16_t*)framebuffer)[index] = c;
+    ((uint16_t*)framebuffer)[index + SFG_SCREEN_RESOLUTION_X] = c;
+}
+#endif
+
+
 #include "game.h"
 #include "sounds.h"
 #include "fastking.h"
 #include "pcfx.h"
 #include "snd.h"
-
-uint32_t ticks = 0;
-unsigned char framebuffer[256*240];
 
 
 #define KRAM_PAGE0 0x00000000
@@ -171,10 +228,21 @@ static void cd_end_track(u8 end, u8 loop)
 
 // now implement the Anarch API functions (SFG_*)
 
+/*
 void SFG_setPixel(uint16_t x, uint16_t y, uint8_t colorIndex)
 {
-    framebuffer[y * SFG_SCREEN_RESOLUTION_X + x] = colorIndex;
-}
+    // Calculate the index into the framebuffer, accounting for the spacing
+    uint32_t index = (y * 2) * SFG_SCREEN_RESOLUTION_X + x;
+    // Write the color index to the framebuffer
+    ((uint16_t*)framebuffer)[index] = (uint16_t)(colorIndex << 8) | colorIndex;
+
+
+    //((uint16_t*)framebuffer)[y * SFG_SCREEN_RESOLUTION_X + x] = (uint16_t)(colorIndex << 8) | colorIndex;
+    
+    
+   //framebuffer[y * SFG_SCREEN_RESOLUTION_X * 2 + x * 2] = colorIndex;
+   // framebuffer[y * SFG_SCREEN_RESOLUTION_X * 2 + x * 2 + 1] = colorIndex;
+}*/
 
 uint32_t SFG_getTimeMs()
 {
@@ -311,21 +379,51 @@ int8_t SFG_keyPressed(uint8_t key)
   
 int running = 1;
 
+/*
+void SFG_drawText(
+  const char *text,
+  uint16_t x,
+  uint16_t y,
+  uint8_t size,
+  uint8_t color,
+  uint16_t maxLength,
+  uint16_t limitX)
+*/
+
+static inline char* myitoa(int val)
+{
+	
+	static char buf[32] = {0};
+	int base = 10;
+	int i = 30;
+	
+	for(; val && i ; --i, val /= base)
+	
+		buf[i] = "0123456789abcdef"[val % base];
+	
+	return &buf[i+1];
+	
+}
+
 
 void mainLoopIteration()
 {
 	padtype = eris_pad_type(0);
 	paddata = eris_pad_read(0);
 
-
 	if (!SFG_mainLoopBody())
 		running = 0;
 
-	eris_king_set_kram_read(1, 1);
+#ifdef DEBUGFPS
+	SFG_drawText(myitoa(getFps()),8,8,
+    SFG_FONT_SIZE_SMALL,4,0,0);
+#endif
+
 	eris_king_set_kram_write(1, 1);
 	king_kram_write_buffer(framebuffer, (256*240));
 	
 	ticks++;
+	++nframe;
 }
 
 uint8_t musicOn = 0;
@@ -456,7 +554,8 @@ int main(int argc, char *argv[])
 	eris_king_init();
 	eris_tetsu_init();
 	eris_pad_init(0);
-	eris_pad_init(1);
+	//eris_pad_init(1);
+	
 	
 	Initialize_ADPCM(ADPCM_RATE_32000);
 	eris_low_cdda_set_volume(63,63);
@@ -465,25 +564,25 @@ int main(int argc, char *argv[])
 	eris_king_set_kram_write(addr, 1);	
 	king_kram_write_buffer(click, sizeof(click));
 	
-	addr = 4096 | KRAM_PAGE1;
+	/*addr = 4096 | KRAM_PAGE1;
 	eris_king_set_kram_write(addr, 1);	
 	king_kram_write_buffer(door, sizeof(door));
 	
 	addr = 4096*2 | KRAM_PAGE1;
 	eris_king_set_kram_write(addr, 1);	
-	king_kram_write_buffer(explosion, sizeof(explosion));
+	king_kram_write_buffer(explosion, sizeof(explosion));*/
 	
 	addr = 4096*3 | KRAM_PAGE1;
 	eris_king_set_kram_write(addr, 1);	
 	king_kram_write_buffer(monster, sizeof(monster));
 	
-	addr = 4096*4 | KRAM_PAGE1;
+	/*addr = 4096*4 | KRAM_PAGE1;
 	eris_king_set_kram_write(addr, 1);	
-	king_kram_write_buffer(noise, sizeof(noise));
+	king_kram_write_buffer(noise, sizeof(noise));*/
 	
-	addr = 4096*5 | KRAM_PAGE1;
+	/*addr = 4096*5 | KRAM_PAGE1;
 	eris_king_set_kram_write(addr, 1);	
-	king_kram_write_buffer(plasma, sizeof(plasma));
+	king_kram_write_buffer(plasma, sizeof(plasma));*/
 	
 	addr = 4096*6 | KRAM_PAGE1;
 	eris_king_set_kram_write(addr, 1);	
@@ -491,7 +590,7 @@ int main(int argc, char *argv[])
 	
 	Set_Video(KING_BGMODE_256_PAL);
 	Upload_Palette(mypal, 256);
-	initTimer(1, 100);
+	initTimer(0, 1423);
 
 	
 	SFG_init();

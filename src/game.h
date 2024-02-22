@@ -114,7 +114,7 @@ void SFG_sleepMs(uint16_t timeMs);
   The function doesn't have to (and shouldn't, for the sake of performance)
   check whether the coordinates are within screen bounds.
 */
-static inline void SFG_setPixel(uint16_t x, uint16_t y, uint8_t colorIndex);
+//static inline void SFG_setPixel(uint16_t x, uint16_t y, uint8_t colorIndex);
 
 /**
   Play given sound effect (SFX). This function may or may not use the sound

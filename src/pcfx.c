@@ -444,6 +444,29 @@ __attribute__ ((interrupt)) void samplepsg_timer_irq (void)
 #endif
 }
 
+uint32_t nframe = 0;
+
+
+int getFps()
+{
+	static int fps = 0;
+	static int prev_sec = 0;
+	static int prev_nframe = 0;
+
+	const int curr_sec = zda_timer_count / 1000;
+	if (curr_sec != prev_sec) {
+		fps = nframe - prev_nframe;
+		prev_sec = curr_sec;
+		prev_nframe = nframe;
+	}
+	return fps;
+}
+
+int getTicks()
+{
+	return zda_timer_count;
+}
+
 __attribute__ ((interrupt)) void my_timer_irq (void)
 {
 	eris_timer_ack_irq();
